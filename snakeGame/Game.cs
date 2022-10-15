@@ -3,106 +3,142 @@ namespace snakeGame
 {
     public class Game
     {
-        public List<int> BonusCells = new List<int> { 10, 20, 30, 40, 42 };
-        private int _numberOfPlayers;
-        private int _boardSize;
-        private int _currentPlayerIndex;
+        public int MAX_PLAYERS = 4;
+        public int CurrentPlayerIndex;
+        public int Turn;
+        public Board Board;
         public List<Player> Players;
+        public bool isPlaying;
 
-        public Game(int numberOfPlayers, int boardSize)
+        public Game()
         {
-            if (numberOfPlayers <= 1) throw new GameException("Number of player must be greater than 1");
-            if (boardSize <= 0) throw new GameException("Board size must be greater than 0");
-            _numberOfPlayers = numberOfPlayers;
-            _boardSize = boardSize;
-            _currentPlayerIndex = 0;
+            CurrentPlayerIndex = 0;
+            Turn = 0;
             Players = new List<Player>();
+            isPlaying = false;
+        }
 
-            CreatePlayers();
+        public int PlayerCount
+        {
+            get
+            {
+                return Players.Count;
+            }
         }
 
         public Player CurrentPlayer
         {
             get
             {
-                return Players[_currentPlayerIndex];
+                return Players[CurrentPlayerIndex];
             }
         }
 
-        public void Start()
-        { 
-            HandleTurn();
-        }
-
-        private void CreatePlayers()
+        public void Start(int numberOfPlayers, int boardSize)
         {
-            for (int i = 0; i < _numberOfPlayers; i++)
+            CreateBoard(boardSize);
+            CreatePlayers(numberOfPlayers);
+
+            isPlaying = true;
+            Turn += 1;
+        }
+
+        public void GameLoop()
+        {
+            while (isPlaying)
             {
-                Players.Add(new Player($"Player {i + 1}"));
+                HandleTurn();
+                HandlePlayerPosition(CurrentPlayer);
             }
+        }
+
+        public void AddPlayer(string name)
+        {
+            if (InvalidPlayerName(name)) throw new PlayerNameException($"Player with the name {name} is already created");
+            if (CheckPlayerCount()) Players.Add(new Player(name));
+            else throw new UnhandledNumberOfPlayersException($"Player Limit is {MAX_PLAYERS}");
+        }
+
+        public void CreatePlayers(int numberOfPlayers)
+        {
+            if (numberOfPlayers <= 1) throw new UnhandledNumberOfPlayersException("Number of player must be greater than 1");
+            for (int i = 0; i < numberOfPlayers; i++)
+            {
+                AddPlayer($"Player {i + 1}");
+            }
+        }
+
+        private void CreateBoard(int boardSize)
+        { 
+            Board = new Board(boardSize);
+        }
+
+        public void NextTurn()
+        {
+            Turn += 1;
+            if (CurrentPlayerIndex == Players.Count - 1) CurrentPlayerIndex = 0;
+            else CurrentPlayerIndex += 1;
+        }
+
+        public void HandlePlayerPosition(Player player)
+        {
+            if (Board.IsOnBonusCell(player.Position)) return;
+            else if (player.Position == Board.Size) Win(player);
+            else if (player.Position > Board.Size) OverBoardSize(player);
+            NextTurn();
         }
 
         public void HandleTurn()
         {
-            Console.WriteLine($"\n----- {CurrentPlayer.Name} turn -----");
+                Console.WriteLine($"\n----- {CurrentPlayer.Name} turn -----");
 
-            CurrentPlayer.Move(CurrentPlayer.DiceRoll());
-
-            CheckCell(CurrentPlayer.Position);
+                CurrentPlayer.Move(CurrentPlayer.DiceRoll());
         }
 
-        public void PlayNextTurn()
+        private void OverBoardSize(Player player)
         {
-            if (_currentPlayerIndex == Players.Count - 1) _currentPlayerIndex = 0;
-            else _currentPlayerIndex += 1;
-
-            HandleTurn();
+            player.Position = Board.Size / 2;
+            Console.WriteLine($"{player.Name} pass the case {Board.Size} he fell to the case {Board.Size / 2}");
         }
 
         private void Win(Player player)
         {
             Console.WriteLine($"\n\n {player.Name} win the game, CONGRATULATION !!!!\n");
+            isPlaying = false;
         }
 
-        public void CheckCell(int cell)
-        {
-            if (cell > _boardSize)
-            {
-                OverBoardSize(CurrentPlayer);
-                PlayNextTurn();
-            }
-            else if (cell == _boardSize) Win(CurrentPlayer);
-            else
-            {
-                if (IsOnBonusCell(cell)) HandleTurn();
-                else PlayNextTurn();
-            }
-        }
 
-        public Boolean IsOnBonusCell(int cell)
+        private bool CheckPlayerCount()
         {
-            foreach (var BonusCell in BonusCells)
-            {
-                if (BonusCell == cell)
-                {
-                    Console.WriteLine("It's a bonus cell !! You can play a other turn");
-                    return true;
-                }
-            }
+            if (PlayerCount < MAX_PLAYERS) return true;
 
             return false;
         }
 
-        public void OverBoardSize(Player player)
+        private bool InvalidPlayerName(string name)
         {
-            player.Position = _boardSize / 2;
-            Console.WriteLine($"{player.Name} pass the case {_boardSize} he fell to the case {_boardSize/2}");
+            foreach (var player in Players)
+            {
+                if (player.Name == name) return true;
+            }
+
+            return false;
         }
     }
 
     public class GameException : Exception
     {
         public GameException(string message) : base(message) { }
+    }
+
+    public class PlayerNameException : Exception
+    {
+        public PlayerNameException(string message) : base(message) { }
+    }
+
+    public class UnhandledNumberOfPlayersException : Exception
+    {
+        public UnhandledNumberOfPlayersException(string message) : base(message) { }
     }
 }
 

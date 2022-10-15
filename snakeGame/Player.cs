@@ -4,7 +4,7 @@
     {
         public string Name;
         public int Position { get; set; }
-        private Dice _dice;
+        private readonly Dice _dice;
 
         public Player(string name)
         {
